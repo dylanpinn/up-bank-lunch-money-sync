@@ -1,0 +1,6 @@
+[tools]
+node = "latest"
+python = "latest"
+
+[env]
+_.python.venv = ".venv" # relative to this file's directory
