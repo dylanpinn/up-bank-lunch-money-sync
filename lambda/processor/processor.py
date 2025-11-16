@@ -210,11 +210,13 @@ def convert_to_lunchmoney_format(up_transaction):
     notes = f"{message}" if message else ""
 
     # Extract transaction date
-    transaction_date = attributes.get(
-        "settledAt", attributes.get("createdAt", datetime.now().isoformat())
+    transaction_date = (
+        attributes.get("settledAt")
+        or attributes.get("createdAt")
+        or datetime.now().isoformat()
     )
     # Convert ISO datetime to YYYY-MM-DD format for Lunch Money
-    if "T" in transaction_date:
+    if transaction_date and "T" in transaction_date:
         transaction_date = transaction_date.split("T")[0]
 
     lunchmoney_transaction = {
