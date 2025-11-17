@@ -187,7 +187,7 @@ def convert_to_lunchmoney_format(up_transaction):
     """
     Convert Up transaction format to Lunch Money format
     """
-    # logger.debug(f"Up Transaction to Format: {up_transaction}")
+    logger.debug(f"Up Transaction to Format: {up_transaction}")
     attributes = up_transaction.get("attributes", {})
     relationships = up_transaction.get("relationships", {})
 
@@ -274,7 +274,7 @@ def sync_to_lunchmoney(api_key, transaction):
 
         payload = {"transactions": [transaction]}
 
-        # logger.debug(f"Transaction to Sync: {transaction}")
+        logger.debug(f"Transaction to Sync: {transaction}")
         response = requests.post(
             f"{LUNCHMONEY_API_BASE}/transactions",
             headers=headers,
@@ -282,7 +282,7 @@ def sync_to_lunchmoney(api_key, transaction):
             timeout=30,
         )
 
-        # logger.debug(f"Lunch Money Response (raw): {json.dumps(response.json())}")
+        logger.debug(f"Lunch Money Response (raw): {json.dumps(response.json())}")
         if response.status_code == 200:
             logger.info(
                 f"Successfully synced transaction {transaction['external_id']} to Lunch Money"
