@@ -141,18 +141,24 @@ def fetch_up_accounts(api_key):
         headers = {"Authorization": f"Bearer {api_key}"}
         accounts = []
         url = f"{UP_API_BASE}/accounts"
+        
+        # Paginate through all accounts
         while url:
             response = requests.get(url, headers=headers, timeout=30)
+
             if response.status_code == 200:
                 data = response.json()
                 accounts.extend(data.get("data", []))
-                url = data.get("links", {}).get("next")
+                
+                # Check for next page
+                next_link = data.get("links", {}).get("next")
+                url = next_link
             else:
                 logger.error(f"Up API error: {response.status_code} - {response.text}")
                 raise Exception(
                     f"Failed to fetch Up accounts: {response.status_code} - {response.text}"
                 )
-                break
+                
         return accounts
     except Exception as e:
         logger.error(f"Error fetching from Up API: {str(e)}")
