@@ -53,27 +53,34 @@ def handler(event, context):
             }
 
         # Get the raw body for signature verification
+        if event.get("isBase64Encoded"):
+            body_bytes = base64.b64decode(event["body"])
+            body_str = "<base64 decoded>"
+        else:
+            body_str = (
+                event["body"]
+                if isinstance(event["body"], str)
+                else json.dumps(event["body"])
+            )
+            body_bytes = body_str.encode("utf-8")
+
+        # Verify webhook signature using HMAC-SHA256
+        expected_signature = hmac.new(
+            webhook_secret.encode("utf-8"), body_bytes, hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(signature, expected_signature):
+            logger.error("Invalid signature")
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": "Invalid signature"}),
+            }
+
         body = (
             event["body"]
             if isinstance(event["body"], str)
             else json.dumps(event["body"])
         )
-
-        # Verify webhook signature using HMAC-SHA256
-        expected_signature = base64.b64encode(
-            hmac.new(
-                webhook_secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256
-            ).digest()
-        ).decode("utf-8")
-
-        # TODO: Implement signature verification
-        # NOTE: This was disabled as wasn't working, will fix in the future.
-        # if not hmac.compare_digest(signature, expected_signature):
-        #     logger.error("Invalid signature")
-        #     return {
-        #         "statusCode": 403,
-        #         "body": json.dumps({"error": "Invalid signature"}),
-        #     }
 
         # Parse webhook payload
         webhook_data = json.loads(body)
