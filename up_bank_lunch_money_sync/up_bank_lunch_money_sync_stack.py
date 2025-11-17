@@ -5,6 +5,12 @@ from aws_cdk import (
     aws_apigateway as apigw,
 )
 from aws_cdk import (
+    aws_cloudwatch as cloudwatch,
+)
+from aws_cdk import (
+    aws_cloudwatch_actions as actions,
+)
+from aws_cdk import (
     aws_dynamodb as dynamodb,
 )
 from aws_cdk import (
@@ -17,6 +23,9 @@ from aws_cdk import (
     aws_lambda as _lambda,
 )
 from aws_cdk import aws_secretsmanager as secretsmanager
+from aws_cdk import (
+    aws_sns as sns,
+)
 from aws_cdk import (
     aws_sqs as sqs,
 )
@@ -33,8 +42,9 @@ class UpBankLunchMoneySyncStack(Stack):
         webhook_secret_value = os.environ.get("UP_WEBHOOK_SECRET")
         up_api_key_value = os.environ.get("UP_API_KEY")
         lunchmoney_api_key_value = os.environ.get("LUNCHMONEY_API_KEY")
+        notification_email_value = os.environ.get("NOTIFICATION_EMAIL")
 
-        # Validate environment variables
+        # Validate required environment variables
         if not all([webhook_secret_value, up_api_key_value, lunchmoney_api_key_value]):
             raise ValueError("Missing required environment variables for secrets")
 
@@ -42,6 +52,25 @@ class UpBankLunchMoneySyncStack(Stack):
         assert webhook_secret_value is not None
         assert up_api_key_value is not None
         assert lunchmoney_api_key_value is not None
+
+        # Create SNS topic for notifications (only if email is provided)
+        notification_topic = None
+        if notification_email_value:
+            notification_topic = sns.Topic(
+                self,
+                "LambdaFailureNotificationTopic",
+                display_name="Lambda Failure Notifications",
+                topic_name="lambda-failure-notifications",
+            )
+
+            # Subscribe email to SNS topic
+            sns.Subscription(
+                self,
+                "EmailSubscription",
+                endpoint=notification_email_value,
+                protocol=sns.SubscriptionProtocol.EMAIL,
+                topic=notification_topic,
+            )
 
         # # Create DynamoDB table for account mapping
         account_mapping_table = dynamodb.TableV2(
@@ -222,3 +251,75 @@ class UpBankLunchMoneySyncStack(Stack):
             description="Trigger category sync Lambda daily at 3 AM UTC",
         )
         category_sync_rule.add_target(targets.LambdaFunction(category_sync_lambda))
+
+        # Create CloudWatch Alarms for Lambda monitoring (only if notification topic exists)
+        if notification_topic:
+            self._create_lambda_alarms(
+                webhook_lambda, "Webhook", notification_topic, Duration.seconds(24)
+            )
+            self._create_lambda_alarms(
+                processor_lambda, "Processor", notification_topic, Duration.minutes(4)
+            )
+            self._create_lambda_alarms(
+                account_sync_lambda,
+                "AccountSync",
+                notification_topic,
+                Duration.minutes(4),
+            )
+            self._create_lambda_alarms(
+                category_sync_lambda,
+                "CategorySync",
+                notification_topic,
+                Duration.minutes(4),
+            )
+
+    def _create_lambda_alarms(
+        self,
+        lambda_function: _lambda.Function,
+        function_name: str,
+        notification_topic: sns.Topic,
+        duration_threshold: Duration,
+    ) -> None:
+        """Create CloudWatch alarms for a Lambda function."""
+
+        # Error rate alarm
+        error_alarm = cloudwatch.Alarm(
+            self,
+            f"{function_name}ErrorAlarm",
+            alarm_name=f"{function_name} Lambda Errors",
+            alarm_description=f"Alarm when {function_name} Lambda has errors",
+            metric=lambda_function.metric_errors(),
+            threshold=1,
+            evaluation_periods=1,
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        error_alarm.add_alarm_action(actions.SnsAction(notification_topic))
+        error_alarm.add_ok_action(actions.SnsAction(notification_topic))
+
+        # Duration alarm (80% of timeout)
+        duration_alarm = cloudwatch.Alarm(
+            self,
+            f"{function_name}DurationAlarm",
+            alarm_name=f"{function_name} Lambda Duration",
+            alarm_description=f"Alarm when {function_name} Lambda duration exceeds threshold",
+            metric=lambda_function.metric_duration(),
+            threshold=duration_threshold.to_milliseconds(),
+            evaluation_periods=1,
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        duration_alarm.add_alarm_action(actions.SnsAction(notification_topic))
+        duration_alarm.add_ok_action(actions.SnsAction(notification_topic))
+
+        # Throttle alarm
+        throttle_alarm = cloudwatch.Alarm(
+            self,
+            f"{function_name}ThrottleAlarm",
+            alarm_name=f"{function_name} Lambda Throttles",
+            alarm_description=f"Alarm when {function_name} Lambda is throttled",
+            metric=lambda_function.metric_throttles(),
+            threshold=1,
+            evaluation_periods=1,
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        throttle_alarm.add_alarm_action(actions.SnsAction(notification_topic))
+        throttle_alarm.add_ok_action(actions.SnsAction(notification_topic))

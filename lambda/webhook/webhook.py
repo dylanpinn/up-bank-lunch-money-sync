@@ -77,7 +77,7 @@ def handler(event, context):
 
         # Parse webhook payload
         webhook_data = json.loads(body)
-        # logger.debug(f"Received webhook (raw): {body}")
+        logger.debug(f"Received webhook (raw): {body}")
 
         # Extract event type from the correct location
         event_type = (
