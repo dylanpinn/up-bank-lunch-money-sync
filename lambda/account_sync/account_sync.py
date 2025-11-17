@@ -149,7 +149,7 @@ def fetch_up_accounts(api_key):
             if response.status_code == 200:
                 data = response.json()
                 accounts.extend(data.get("data", []))
-                
+
                 # Check for next page
                 next_link = data.get("links", {}).get("next")
                 url = next_link
@@ -158,7 +158,7 @@ def fetch_up_accounts(api_key):
                 raise Exception(
                     f"Failed to fetch Up accounts: {response.status_code} - {response.text}"
                 )
-                
+
         return accounts
     except Exception as e:
         logger.error(f"Error fetching from Up API: {str(e)}")
