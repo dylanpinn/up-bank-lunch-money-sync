@@ -169,7 +169,7 @@ def fetch_up_transaction(api_key, transaction_id):
     try:
         headers = {"Authorization": f"Bearer {api_key}"}
         response = requests.get(
-            f"{UP_API_BASE}/transactions/{transaction_id}", headers=headers, timeout=30
+            f"{UP_API_BASE}/transactions/{transaction_id}", headers=headers
         )
 
         if response.status_code == 200:
