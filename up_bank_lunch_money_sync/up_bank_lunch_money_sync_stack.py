@@ -98,12 +98,23 @@ class UpBankLunchMoneySyncStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
         )
 
-        # Create SQS queue for transaction processing
+        # Create DLQ for failed transaction processing
+        dlq = sqs.Queue(
+            self,
+            "UpWebhookDLQ",
+            retention_period=Duration.days(14),
+        )
+
+        # Create SQS queue for transaction processing with DLQ
         queue = sqs.Queue(
             self,
             "UpWebhookQueue",
             visibility_timeout=Duration.seconds(300),
             retention_period=Duration.days(14),
+            dead_letter_queue=sqs.DeadLetterQueue(
+                max_receive_count=5,
+                queue=dlq,
+            ),
         )
 
         # Create secrets with values from environment
@@ -272,6 +283,25 @@ class UpBankLunchMoneySyncStack(Stack):
                 notification_topic,
                 Duration.minutes(4),
             )
+
+            # DLQ alarm for failed messages
+            dlq_alarm = cloudwatch.Alarm(
+                self,
+                "DLQAlarm",
+                alarm_name="Processor DLQ Messages",
+                alarm_description="Alarm when DLQ has messages indicating failed processing",
+                metric=cloudwatch.Metric(
+                    namespace="AWS/SQS",
+                    metric_name="ApproximateNumberOfMessagesVisible",
+                    dimensions_map={"QueueName": dlq.queue_name},
+                    statistic="Maximum",
+                ),
+                threshold=1,
+                evaluation_periods=1,
+                treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+            )
+            dlq_alarm.add_alarm_action(actions.SnsAction(notification_topic))
+            dlq_alarm.add_ok_action(actions.SnsAction(notification_topic))
 
     def _create_lambda_alarms(
         self,
