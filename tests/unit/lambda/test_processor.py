@@ -38,7 +38,6 @@ class TestProcessorTransactionConversion:
 
         # Income should be positive
         assert result["amount"] == "50.0"
-        assert result["type"] == "income"
         assert float(result["amount"]) > 0
 
     def test_convert_expense_transaction_negative_amount(self):
@@ -65,7 +64,6 @@ class TestProcessorTransactionConversion:
 
         # Expense should be negative
         assert result["amount"] == "-25.5"
-        assert result["type"] == "expense"
         assert float(result["amount"]) < 0
 
     def test_convert_zero_amount(self):
@@ -87,9 +85,8 @@ class TestProcessorTransactionConversion:
 
         result = convert_to_lunchmoney_format(up_transaction)
 
-        # Zero should be treated as income (not < 0)
+        # Zero should be treated as zero
         assert result["amount"] == "0.0"
-        assert result["type"] == "income"
 
     def test_convert_preserves_decimal_places(self):
         """Test that decimal places are preserved correctly"""
@@ -133,7 +130,6 @@ class TestProcessorTransactionConversion:
 
         # Large expense should remain negative
         assert result["amount"] == "-1500.0"
-        assert result["type"] == "expense"
         assert float(result["amount"]) < 0
 
     def test_convert_includes_required_fields(self):
@@ -158,7 +154,6 @@ class TestProcessorTransactionConversion:
         # Check all required fields are present
         assert "payee" in result
         assert "amount" in result
-        assert "type" in result
         assert "notes" in result
         assert "date" in result
         assert "external_id" in result
@@ -186,4 +181,3 @@ class TestProcessorTransactionConversion:
 
         # Should preserve negative sign
         assert float(result["amount"]) == -42.99
-        assert result["type"] == "expense"

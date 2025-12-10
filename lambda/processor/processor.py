@@ -222,7 +222,6 @@ def convert_to_lunchmoney_format(up_transaction):
     lunchmoney_transaction = {
         "payee": payee,
         "amount": str(amount_float),  # Preserve sign: positive for income, negative for expenses
-        "type": "expense" if amount_float < 0 else "income",
         "notes": notes,
         "date": transaction_date,
         "external_id": up_transaction.get(
