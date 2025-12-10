@@ -95,11 +95,16 @@ def process_transaction_event(webhook_data):
         logger.error(f"Failed to fetch transaction {transaction_id}")
         return
 
-    # Convert to Lunch Money format
-    lunchmoney_transaction = convert_to_lunchmoney_format(transaction)
+    # Convert to Lunch Money format and check for round-up
+    transactions_to_sync = convert_to_lunchmoney_format(transaction)
 
-    # Send to Lunch Money
-    sync_to_lunchmoney(lunchmoney_api_key, lunchmoney_transaction)
+    # Send transaction(s) to Lunch Money
+    # If round-up exists, this will be a list of 2 transactions
+    if isinstance(transactions_to_sync, list):
+        for txn in transactions_to_sync:
+            sync_to_lunchmoney(lunchmoney_api_key, txn)
+    else:
+        sync_to_lunchmoney(lunchmoney_api_key, transactions_to_sync)
 
 
 def get_account_mapping(up_account_id):
@@ -257,6 +262,38 @@ def convert_to_lunchmoney_format(up_transaction):
                 logger.warning(
                     f"No Lunch Money category mapping found for Up category {up_category_id}"
                 )
+
+    # Check for round-up and create separate transaction if present
+    roundup_data = attributes.get("roundUp")
+    if roundup_data and roundup_data.get("amount"):
+        logger.info(f"Transaction {up_transaction.get('id')} has round-up")
+        
+        roundup_amount_obj = roundup_data.get("amount", {})
+        roundup_value = roundup_amount_obj.get("value", "0") if isinstance(roundup_amount_obj, dict) else roundup_amount_obj
+        
+        try:
+            roundup_float = float(roundup_value)
+        except (ValueError, TypeError):
+            roundup_float = 0.0
+        
+        # Only create round-up transaction if amount is non-zero
+        if roundup_float != 0.0:
+            roundup_transaction = {
+                "payee": "Round Up",
+                "amount": str(roundup_float),
+                "notes": f"Round up for: {payee}",
+                "date": transaction_date,
+                "external_id": f"{up_transaction.get('id')}-roundup",
+                "currency": currency,
+                "status": "uncleared",
+            }
+            
+            # Use same account mapping for round-up
+            if "asset_id" in lunchmoney_transaction:
+                roundup_transaction["asset_id"] = lunchmoney_transaction["asset_id"]
+            
+            # Return both transactions as a list
+            return [lunchmoney_transaction, roundup_transaction]
 
     return lunchmoney_transaction
 
