@@ -242,7 +242,9 @@ class UpBankLunchMoneySyncStack(Stack):
         )
 
         # Set up SQS trigger for processor
-        sqs_event_source = SqsEventSource(queue, batch_size=10)
+        sqs_event_source = SqsEventSource(
+            queue, batch_size=10, max_batching_window=Duration.seconds(30)
+        )
         processor_lambda.add_event_source(sqs_event_source)
 
         # Create EventBridge rule to run account sync daily at 2 AM UTC
