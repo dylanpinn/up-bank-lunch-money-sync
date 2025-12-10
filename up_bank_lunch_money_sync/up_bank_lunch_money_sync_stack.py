@@ -94,10 +94,11 @@ class UpBankLunchMoneySyncStack(Stack):
         )
 
         # Create SQS queue for transaction processing with DLQ
+        # Visibility timeout is 6x processor Lambda timeout (2 min * 6 = 12 min)
         queue = sqs.Queue(
             self,
             "UpWebhookQueue",
-            visibility_timeout=Duration.seconds(300),
+            visibility_timeout=Duration.seconds(720),
             retention_period=Duration.days(14),
             dead_letter_queue=sqs.DeadLetterQueue(
                 max_receive_count=5,
@@ -169,7 +170,7 @@ class UpBankLunchMoneySyncStack(Stack):
                 "ACCOUNT_MAPPING_TABLE": account_mapping_table.table_name,
                 "CATEGORY_MAPPING_TABLE": category_mapping_table.table_name,
             },
-            timeout=Duration.minutes(5),
+            timeout=Duration.minutes(2),
         )
 
         # Account Sync Lambda function
@@ -271,7 +272,7 @@ class UpBankLunchMoneySyncStack(Stack):
                 webhook_lambda, "Webhook", notification_topic, Duration.seconds(24)
             )
             self._create_lambda_alarms(
-                processor_lambda, "Processor", notification_topic, Duration.minutes(4)
+                processor_lambda, "Processor", notification_topic, Duration.seconds(96)
             )
             self._create_lambda_alarms(
                 account_sync_lambda,
