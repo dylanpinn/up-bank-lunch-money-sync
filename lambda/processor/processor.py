@@ -196,10 +196,11 @@ def convert_to_lunchmoney_format(up_transaction):
     attributes = up_transaction.get("attributes", {})
     relationships = up_transaction.get("relationships", {})
 
-    # Extract amount data (Up Bank stores amount as an object with value and currency)
+    # Extract amount data (Up Bank stores amount as an object with value and currencyCode)
     amount = attributes.get("amount", {})
     amount_value = amount.get("value", "0") if isinstance(amount, dict) else amount
-    currency = amount.get("currency", "aud") if isinstance(amount, dict) else "aud"
+    currency = amount.get("currencyCode", "AUD") if isinstance(amount, dict) else "AUD"
+    currency = currency.lower()  # Lunch Money expects lowercase currency codes
 
     # Convert to float and handle Up's format (negative for expenses)
     try:

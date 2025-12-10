@@ -22,7 +22,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-123",
             "attributes": {
-                "amount": {"value": "50.00", "currency": "aud"},
+                "amount": {"value": "50.00", "currencyCode": "AUD"},
                 "description": "Salary deposit",
                 "message": "Monthly salary",
                 "createdAt": "2025-12-10T10:00:00Z",
@@ -48,7 +48,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-456",
             "attributes": {
-                "amount": {"value": "-25.50", "currency": "aud"},
+                "amount": {"value": "-25.50", "currencyCode": "AUD"},
                 "description": "Coffee shop",
                 "message": "Daily coffee",
                 "createdAt": "2025-12-10T11:00:00Z",
@@ -71,7 +71,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-789",
             "attributes": {
-                "amount": {"value": "0.00", "currency": "aud"},
+                "amount": {"value": "0.00", "currencyCode": "AUD"},
                 "description": "Transfer",
                 "message": "",
                 "createdAt": "2025-12-10T12:00:00Z",
@@ -93,7 +93,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-999",
             "attributes": {
-                "amount": {"value": "123.45", "currency": "aud"},
+                "amount": {"value": "123.45", "currencyCode": "AUD"},
                 "description": "Payment",
                 "message": "",
                 "createdAt": "2025-12-10T13:00:00Z",
@@ -114,7 +114,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-large",
             "attributes": {
-                "amount": {"value": "-1500.00", "currency": "aud"},
+                "amount": {"value": "-1500.00", "currencyCode": "AUD"},
                 "description": "Rent payment",
                 "message": "Monthly rent",
                 "createdAt": "2025-12-10T14:00:00Z",
@@ -137,7 +137,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-complete",
             "attributes": {
-                "amount": {"value": "100.00", "currency": "aud"},
+                "amount": {"value": "100.00", "currencyCode": "AUD"},
                 "description": "Shop purchase",
                 "message": "Groceries",
                 "createdAt": "2025-12-10T15:00:00Z",
@@ -165,7 +165,7 @@ class TestProcessorTransactionConversion:
         up_transaction = {
             "id": "txn-string",
             "attributes": {
-                "amount": {"value": "-42.99", "currency": "aud"},
+                "amount": {"value": "-42.99", "currencyCode": "AUD"},
                 "description": "Test",
                 "message": "",
                 "createdAt": "2025-12-10T16:00:00Z",
@@ -194,13 +194,13 @@ class TestProcessorRoundUpHandling:
         up_transaction = {
             "id": "txn-with-roundup",
             "attributes": {
-                "amount": {"value": "-24.50", "currency": "aud"},
+                "amount": {"value": "-24.50", "currencyCode": "AUD"},
                 "description": "Coffee shop",
                 "message": "",
                 "createdAt": "2025-12-10T10:00:00Z",
                 "settledAt": "2025-12-10T10:00:00Z",
                 "roundUp": {
-                    "amount": {"value": "-0.50", "currency": "aud"},
+                    "amount": {"value": "-0.50", "currencyCode": "AUD"},
                     "boostPortion": None,
                 },
             },
@@ -237,7 +237,7 @@ class TestProcessorRoundUpHandling:
         up_transaction = {
             "id": "txn-no-roundup",
             "attributes": {
-                "amount": {"value": "-25.00", "currency": "aud"},
+                "amount": {"value": "-25.00", "currencyCode": "AUD"},
                 "description": "Grocery store",
                 "message": "",
                 "createdAt": "2025-12-10T11:00:00Z",
@@ -264,13 +264,13 @@ class TestProcessorRoundUpHandling:
         up_transaction = {
             "id": "txn-zero-roundup",
             "attributes": {
-                "amount": {"value": "-25.00", "currency": "aud"},
+                "amount": {"value": "-25.00", "currencyCode": "AUD"},
                 "description": "Even amount",
                 "message": "",
                 "createdAt": "2025-12-10T12:00:00Z",
                 "settledAt": "2025-12-10T12:00:00Z",
                 "roundUp": {
-                    "amount": {"value": "0.00", "currency": "aud"},
+                    "amount": {"value": "0.00", "currencyCode": "AUD"},
                     "boostPortion": None,
                 },
             },
@@ -306,13 +306,13 @@ class TestProcessorRoundUpHandling:
         transaction = {
             "id": "txn-main",
             "attributes": {
-                "amount": {"value": "-24.50", "currency": "aud"},
+                "amount": {"value": "-24.50", "currencyCode": "AUD"},
                 "description": "Coffee shop",
                 "message": "",
                 "createdAt": "2025-12-10T10:00:00Z",
                 "settledAt": "2025-12-10T10:00:00Z",
                 "roundUp": {
-                    "amount": {"value": "-0.50", "currency": "aud"},
+                    "amount": {"value": "-0.50", "currencyCode": "AUD"},
                     "boostPortion": None,
                 },
             },
@@ -342,4 +342,79 @@ class TestProcessorRoundUpHandling:
 
         # Verify both transactions were synced (main + roundup)
         assert mock_sync.call_count == 2
+
+    def test_convert_real_up_bank_response_with_roundup(self):
+        """
+        Test with actual Up Bank API response structure
+        """
+        up_transaction = {
+            "id": "0aad0b59-3f24-4a25-aeff-6bbd2c54d6ea",
+            "attributes": {
+                "status": "SETTLED",
+                "rawText": "WARUNG BEBEK, UBUD INDONES",
+                "description": "Warung Bebek Bengil",
+                "message": None,
+                "isCategorizable": True,
+                "holdInfo": {
+                    "amount": {
+                        "currencyCode": "AUD",
+                        "value": "-107.92",
+                        "valueInBaseUnits": -10792,
+                    },
+                    "foreignAmount": None,
+                },
+                "roundUp": {
+                    "amount": {
+                        "currencyCode": "AUD",
+                        "value": "-0.08",
+                        "valueInBaseUnits": -8,
+                    },
+                    "boostPortion": None,
+                },
+                "cashback": None,
+                "amount": {
+                    "currencyCode": "AUD",
+                    "value": "-107.92",
+                    "valueInBaseUnits": -10792,
+                },
+                "foreignAmount": {
+                    "currencyCode": "IDR",
+                    "value": "-1053698.77",
+                    "valueInBaseUnits": -105369877,
+                },
+                "cardPurchaseMethod": {
+                    "method": "CARD_ON_FILE",
+                    "cardNumberSuffix": "0001",
+                },
+                "settledAt": "2025-12-02T04:00:00+11:00",
+                "createdAt": "2025-12-02T04:00:00+11:00",
+            },
+            "relationships": {
+                "account": {"data": {"type": "accounts", "id": "44e39b44-4572-4379-b9e2-94f38e64d7c8"}},
+                "category": {"data": None},
+            },
+        }
+
+        result = convert_to_lunchmoney_format(up_transaction)
+
+        # Should return a list of two transactions
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+        # First transaction is the main transaction
+        main_txn = result[0]
+        assert main_txn["amount"] == "-107.92"
+        assert main_txn["payee"] == "Warung Bebek Bengil"
+        assert main_txn["external_id"] == "0aad0b59-3f24-4a25-aeff-6bbd2c54d6ea"
+        assert main_txn["currency"] == "aud"
+        assert main_txn["date"] == "2025-12-02"
+
+        # Second transaction is the round-up
+        roundup_txn = result[1]
+        assert roundup_txn["amount"] == "-0.08"
+        assert roundup_txn["payee"] == "Round Up"
+        assert roundup_txn["external_id"] == "0aad0b59-3f24-4a25-aeff-6bbd2c54d6ea-roundup"
+        assert roundup_txn["currency"] == "aud"
+        assert "Warung Bebek Bengil" in roundup_txn["notes"]
+
 
