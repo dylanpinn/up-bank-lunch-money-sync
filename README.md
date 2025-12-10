@@ -181,6 +181,28 @@ cdk deploy
    - Handles parent-child category relationships
    - Stores category ID mappings
 
+## Continuous Deployment
+
+This project includes **automatic deployment to AWS** when changes are pushed to the `main` branch.
+
+### 🚀 Quick Start (5 minutes)
+
+See **[QUICKSTART.md](QUICKSTART.md)** for the fastest setup path:
+1. Deploy bootstrap stack with CDK (creates OIDC + IAM role)
+2. Add 6 secrets to GitHub
+3. Push to main → automatic deployment! 🎉
+
+### 📚 Detailed Documentation
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for:
+- CDK bootstrap stack deployment
+- Manual AWS console setup (alternative)
+- GitHub secrets configuration
+- Troubleshooting deployment issues
+- Security best practices
+
+**Why CDK Bootstrap?** The bootstrap stack manages your GitHub Actions infrastructure as code, making setup reproducible and version-controlled.
+
 ## Development
 
 ### Running Tests
