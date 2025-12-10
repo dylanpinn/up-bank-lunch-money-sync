@@ -8,7 +8,7 @@ import pytest
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../lambda/processor"))
-from processor import convert_to_lunchmoney_format
+from processor import convert_to_lunchmoney_format, process_transaction_event
 
 
 class TestProcessorTransactionConversion:
@@ -181,3 +181,165 @@ class TestProcessorTransactionConversion:
 
         # Should preserve negative sign
         assert float(result["amount"]) == -42.99
+
+
+class TestProcessorRoundUpHandling:
+    """Test round-up transaction handling"""
+
+    def test_convert_transaction_with_roundup_attribute(self):
+        """
+        Test that transactions with roundUp attribute
+        return two separate transactions
+        """
+        up_transaction = {
+            "id": "txn-with-roundup",
+            "attributes": {
+                "amount": {"value": "-24.50", "currency": "aud"},
+                "description": "Coffee shop",
+                "message": "",
+                "createdAt": "2025-12-10T10:00:00Z",
+                "settledAt": "2025-12-10T10:00:00Z",
+                "roundUp": {
+                    "amount": {"value": "-0.50", "currency": "aud"},
+                    "boostPortion": None,
+                },
+            },
+            "relationships": {
+                "account": {"data": {}},
+                "category": {"data": {}},
+            },
+        }
+
+        result = convert_to_lunchmoney_format(up_transaction)
+
+        # Should return a list of two transactions
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+        # First transaction is the main transaction
+        main_txn = result[0]
+        assert main_txn["amount"] == "-24.5"
+        assert main_txn["payee"] == "Coffee shop"
+        assert main_txn["external_id"] == "txn-with-roundup"
+
+        # Second transaction is the round-up
+        roundup_txn = result[1]
+        assert roundup_txn["amount"] == "-0.5"
+        assert roundup_txn["payee"] == "Round Up"
+        assert roundup_txn["external_id"] == "txn-with-roundup-roundup"
+        assert "Coffee shop" in roundup_txn["notes"]
+
+    def test_convert_transaction_without_roundup(self):
+        """
+        Test that transactions without roundUp attribute
+        return a single transaction
+        """
+        up_transaction = {
+            "id": "txn-no-roundup",
+            "attributes": {
+                "amount": {"value": "-25.00", "currency": "aud"},
+                "description": "Grocery store",
+                "message": "",
+                "createdAt": "2025-12-10T11:00:00Z",
+                "settledAt": "2025-12-10T11:00:00Z",
+            },
+            "relationships": {
+                "account": {"data": {}},
+                "category": {"data": {}},
+            },
+        }
+
+        result = convert_to_lunchmoney_format(up_transaction)
+
+        # Should return a single transaction (not a list)
+        assert isinstance(result, dict)
+        assert result["amount"] == "-25.0"
+        assert result["payee"] == "Grocery store"
+
+    def test_convert_transaction_with_zero_roundup(self):
+        """
+        Test that transactions with zero roundUp amount
+        only return the main transaction
+        """
+        up_transaction = {
+            "id": "txn-zero-roundup",
+            "attributes": {
+                "amount": {"value": "-25.00", "currency": "aud"},
+                "description": "Even amount",
+                "message": "",
+                "createdAt": "2025-12-10T12:00:00Z",
+                "settledAt": "2025-12-10T12:00:00Z",
+                "roundUp": {
+                    "amount": {"value": "0.00", "currency": "aud"},
+                    "boostPortion": None,
+                },
+            },
+            "relationships": {
+                "account": {"data": {}},
+                "category": {"data": {}},
+            },
+        }
+
+        result = convert_to_lunchmoney_format(up_transaction)
+
+        # Should return only main transaction since roundup is zero
+        assert isinstance(result, dict)
+        assert result["amount"] == "-25.0"
+
+    @patch("processor.get_secret")
+    @patch("processor.fetch_up_transaction")
+    @patch("processor.sync_to_lunchmoney")
+    def test_process_transaction_event_with_roundup(
+        self, mock_sync, mock_fetch, mock_get_secret
+    ):
+        """
+        Test that transaction events with roundUp sync both transactions
+        """
+        # Set up environment variables
+        os.environ["UP_API_KEY_ARN"] = "test-up-arn"
+        os.environ["LUNCHMONEY_API_KEY_ARN"] = "test-lm-arn"
+
+        # Mock secrets
+        mock_get_secret.side_effect = ["test-up-key", "test-lm-key"]
+
+        # Transaction with round-up
+        transaction = {
+            "id": "txn-main",
+            "attributes": {
+                "amount": {"value": "-24.50", "currency": "aud"},
+                "description": "Coffee shop",
+                "message": "",
+                "createdAt": "2025-12-10T10:00:00Z",
+                "settledAt": "2025-12-10T10:00:00Z",
+                "roundUp": {
+                    "amount": {"value": "-0.50", "currency": "aud"},
+                    "boostPortion": None,
+                },
+            },
+            "relationships": {
+                "account": {"data": {}},
+                "category": {"data": {}},
+            },
+        }
+
+        mock_fetch.return_value = transaction
+
+        # Webhook data
+        webhook_data = {
+            "data": {
+                "attributes": {"eventType": "TRANSACTION_CREATED"},
+                "relationships": {
+                    "transaction": {"data": {"type": "transactions", "id": "txn-main"}}
+                },
+            }
+        }
+
+        # Process the transaction
+        process_transaction_event(webhook_data)
+
+        # Verify transaction was fetched once
+        assert mock_fetch.call_count == 1
+
+        # Verify both transactions were synced (main + roundup)
+        assert mock_sync.call_count == 2
+
