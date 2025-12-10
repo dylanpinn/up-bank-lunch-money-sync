@@ -1,6 +1,6 @@
 import os
 
-from aws_cdk import Duration, RemovalPolicy, SecretValue, Stack
+from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import (
     aws_apigateway as apigw,
 )
@@ -38,20 +38,8 @@ class UpBankLunchMoneySyncStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Read secrets from environment variables
-        webhook_secret_value = os.environ.get("UP_WEBHOOK_SECRET")
-        up_api_key_value = os.environ.get("UP_API_KEY")
-        lunchmoney_api_key_value = os.environ.get("LUNCHMONEY_API_KEY")
+        # Read optional notification email from environment variable
         notification_email_value = os.environ.get("NOTIFICATION_EMAIL")
-
-        # Validate required environment variables
-        if not all([webhook_secret_value, up_api_key_value, lunchmoney_api_key_value]):
-            raise ValueError("Missing required environment variables for secrets")
-
-        # Type narrowing: After validation, these are guaranteed to be strings
-        assert webhook_secret_value is not None
-        assert up_api_key_value is not None
-        assert lunchmoney_api_key_value is not None
 
         # Create SNS topic for notifications (only if email is provided)
         notification_topic = None
@@ -117,26 +105,38 @@ class UpBankLunchMoneySyncStack(Stack):
             ),
         )
 
-        # Create secrets with values from environment
-        webhook_secret = secretsmanager.Secret(
+        # Reference existing secrets from AWS Secrets Manager
+        # These secrets must be pre-created before deployment
+        # ARNs are read from environment variables
+        webhook_secret_arn = os.environ.get(
+            "WEBHOOK_SECRET_ARN",
+            "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-webhook-secret-XXXXXX",
+        )
+        up_api_key_arn = os.environ.get(
+            "UP_API_KEY_ARN",
+            "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-api-key-XXXXXX",
+        )
+        lunchmoney_api_key_arn = os.environ.get(
+            "LUNCHMONEY_API_KEY_ARN",
+            "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:lunchmoney-api-key-XXXXXX",
+        )
+
+        webhook_secret = secretsmanager.Secret.from_secret_complete_arn(
             self,
             "WebhookSecret",
-            secret_name="up-bank-webhook-secret",
-            secret_string_value=SecretValue.unsafe_plain_text(webhook_secret_value),
+            secret_complete_arn=webhook_secret_arn,
         )
 
-        up_api_key_secret = secretsmanager.Secret(
+        up_api_key_secret = secretsmanager.Secret.from_secret_complete_arn(
             self,
             "UpApiKey",
-            secret_name="up-bank-api-key",
-            secret_string_value=SecretValue.unsafe_plain_text(up_api_key_value),
+            secret_complete_arn=up_api_key_arn,
         )
 
-        lunchmoney_api_key_secret = secretsmanager.Secret(
+        lunchmoney_api_key_secret = secretsmanager.Secret.from_secret_complete_arn(
             self,
             "LunchmoneyApiKey",
-            secret_name="lunchmoney-api-key",
-            secret_string_value=SecretValue.unsafe_plain_text(lunchmoney_api_key_value),
+            secret_complete_arn=lunchmoney_api_key_arn,
         )
 
         # Webhook Lambda function

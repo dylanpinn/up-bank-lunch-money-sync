@@ -54,17 +54,50 @@ Verify your configuration:
 aws sts get-caller-identity
 ```
 
-### 3. Set Environment Variables
+### 3. Create AWS Secrets
+
+Create the required secrets in AWS Secrets Manager:
 
 ```bash
-export UP_WEBHOOK_SECRET="your-generated-webhook-secret"
-export UP_API_KEY="your-up-bank-api-key"
-export LUNCHMONEY_API_KEY="your-lunch-money-api-key"
+# Create webhook secret
+aws secretsmanager create-secret \
+  --name up-bank-webhook-secret \
+  --description "Webhook secret for Up Bank webhooks" \
+  --secret-string "your-generated-webhook-secret" \
+  --region ap-southeast-2
+
+# Create Up Bank API key secret
+aws secretsmanager create-secret \
+  --name up-bank-api-key \
+  --description "API key for Up Bank API" \
+  --secret-string "your-up-bank-api-key" \
+  --region ap-southeast-2
+
+# Create Lunch Money API key secret
+aws secretsmanager create-secret \
+  --name lunchmoney-api-key \
+  --description "API key for Lunch Money API" \
+  --secret-string "your-lunch-money-api-key" \
+  --region ap-southeast-2
+```
+
+**Note:** Take note of the ARNs returned from these commands. You'll need them for deployment.
+
+### 4. Set Environment Variables for Deployment
+
+```bash
+# Required: Set the secret ARNs (use ARNs from step 3)
+export WEBHOOK_SECRET_ARN="arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-webhook-secret-XXXXXX"
+export UP_API_KEY_ARN="arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-api-key-XXXXXX"
+export LUNCHMONEY_API_KEY_ARN="arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:lunchmoney-api-key-XXXXXX"
+
+# Optional: Set notification email for alerts
+export NOTIFICATION_EMAIL="your-email@example.com"
 ```
 
 Save these in `.env` or your shell profile for convenience.
 
-### 4. Deploy to AWS
+### 5. Deploy to AWS
 
 ```bash
 # Verify the CloudFormation template
@@ -77,7 +110,7 @@ cdk deploy
 # UpBankLunchMoneySyncStack.WebhookURL = https://xxx.execute-api.us-east-1.amazonaws.com/prod/webhook
 ```
 
-### 5. Configure Up Bank Webhooks
+### 6. Configure Up Bank Webhooks
 
 1. Go to your [Up Bank Developer Settings](https://developer.up.com.au/)
 2. Create a new webhook:

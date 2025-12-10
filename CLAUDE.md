@@ -11,14 +11,40 @@ This is an AWS serverless microservice that synchronizes financial data between 
 ## Common Development Commands
 
 ### Prerequisites
-```bash
-# Activate Python virtual environment
-source .venv/bin/activate
 
-# Set required environment variables for deployment
-export UP_WEBHOOK_SECRET="your-webhook-secret"
-export UP_API_KEY="your-up-bank-api-key"
-export LUNCHMONEY_API_KEY="your-lunchmoney-api-key"
+#### 1. Activate Python virtual environment
+```bash
+source .venv/bin/activate
+```
+
+#### 2. Create secrets in AWS Secrets Manager (required before deployment)
+The CDK stack references pre-existing secrets from AWS Secrets Manager. Create them using the AWS CLI:
+
+```bash
+# Create webhook secret (HMAC key for Up Bank webhook verification)
+aws secretsmanager create-secret \
+  --name up-bank-webhook-secret \
+  --secret-string "your-webhook-secret" \
+  --region us-east-1
+
+# Create Up Bank API key secret
+aws secretsmanager create-secret \
+  --name up-bank-api-key \
+  --secret-string "your-up-bank-api-key" \
+  --region us-east-1
+
+# Create Lunch Money API key secret
+aws secretsmanager create-secret \
+  --name lunchmoney-api-key \
+  --secret-string "your-lunchmoney-api-key" \
+  --region us-east-1
+```
+
+**Note:** If secrets already exist, use `put-secret-value` to update them:
+```bash
+aws secretsmanager put-secret-value \
+  --secret-id up-bank-webhook-secret \
+  --secret-string "your-webhook-secret"
 ```
 
 ### Building & Deployment
@@ -40,11 +66,6 @@ cdk ls
 ```bash
 # Install test dependencies
 pip install -r tests/requirements.txt
-
-# Set test environment variables (for local testing)
-export UP_WEBHOOK_SECRET="test-secret"
-export UP_API_KEY="test-api-key"
-export LUNCHMONEY_API_KEY="test-lunchmoney-key"
 
 # Run all tests
 pytest tests/
@@ -176,8 +197,12 @@ Defines all AWS resources:
 
 ## Important Notes
 
-1. **Environment Variables Required for Deployment**
-   - UP_WEBHOOK_SECRET, UP_API_KEY, LUNCHMONEY_API_KEY must be set before `cdk deploy`
+1. **Secure Secret Management**
+   - Secrets are stored securely in AWS Secrets Manager, not passed through environment variables
+   - The CDK stack references pre-existing secrets by name
+   - No secrets are embedded in CloudFormation templates or CDK state files
+   - Required secrets must be created in Secrets Manager before deploying: `up-bank-webhook-secret`, `up-bank-api-key`, `lunchmoney-api-key`
+   - Ensure the AWS region matches where you deploy the CDK stack
 
 2. **Current Limitations**
    - Webhook signature verification is disabled
