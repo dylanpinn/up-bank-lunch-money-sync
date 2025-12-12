@@ -40,6 +40,17 @@ jobs:
 
       - name: Synthesize CloudFormation template
         run: cdk synth
+        env:
+          WEBHOOK_SECRET_ARN: ${{ secrets.WEBHOOK_SECRET_ARN || 'arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-webhook-secret-XXXXXX' }}
+          UP_API_KEY_ARN: ${{ secrets.UP_API_KEY_ARN || 'arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-api-key-XXXXXX' }}
+          LUNCHMONEY_API_KEY_ARN: ${{ secrets.LUNCHMONEY_API_KEY_ARN || 'arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:lunchmoney-api-key-XXXXXX' }}
+          NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+
+      - name: Upload CDK synth output
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk.out
+          path: cdk.out/**
 
   test:
     runs-on: ubuntu-latest
@@ -77,6 +88,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Download CDK synth output
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk.out
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -102,7 +118,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: CDK Diff
-        run: cdk diff
+        run: cdk diff --app cdk.out
         env:
           WEBHOOK_SECRET_ARN: ${{ secrets.WEBHOOK_SECRET_ARN }}
           UP_API_KEY_ARN: ${{ secrets.UP_API_KEY_ARN }}
@@ -110,7 +126,7 @@ jobs:
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
 
       - name: Deploy to AWS
-        run: cdk deploy --require-approval never
+        run: cdk deploy --app cdk.out --require-approval never
         env:
           WEBHOOK_SECRET_ARN: ${{ secrets.WEBHOOK_SECRET_ARN }}
           UP_API_KEY_ARN: ${{ secrets.UP_API_KEY_ARN }}
