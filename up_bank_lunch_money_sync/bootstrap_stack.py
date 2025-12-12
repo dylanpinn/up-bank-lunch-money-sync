@@ -39,7 +39,7 @@ class BootstrapStack(Stack):
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                     },
                     "StringLike": {
-                        "token.actions.githubusercontent.com:sub": f"repo:{github_org}/{github_repo}:ref:refs/heads/{github_branch}"
+                        "token.actions.githubusercontent.com:sub": f"repo:{github_org}/{github_repo}:*"
                     },
                 },
             ),
@@ -92,6 +92,6 @@ class BootstrapStack(Stack):
         CfnOutput(
             self,
             "TrustPolicy",
-            value=f"repo:{github_org}/{github_repo}:ref:refs/heads/{github_branch}",
+            value=f"repo:{github_org}/{github_repo}:*",
             description="Trust policy condition for the GitHub Actions role",
         )
