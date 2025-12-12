@@ -32,7 +32,7 @@ pytest --cov=lambda --cov=up_bank_lunch_money_sync --cov-report=html tests/
 
 The project uses GitHub Actions for automatic deployment to AWS:
 
-- **Workflow**: `.github/workflows/deploy.yml`
+- **Workflow**: `.github/workflows/ci-cd.yml`
 - **Trigger**: Push to `main` branch or manual dispatch
 - **Setup Guide**: See `DEPLOYMENT.md` for complete instructions
 
@@ -40,7 +40,7 @@ The project uses GitHub Actions for automatic deployment to AWS:
 
 ```bash
 # View recent deployments
-gh run list --workflow=deploy.yml
+gh run list --workflow=ci-cd.yml
 
 # Watch current deployment
 gh run watch

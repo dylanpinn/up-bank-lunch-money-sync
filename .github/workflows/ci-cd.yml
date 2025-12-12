@@ -98,6 +98,7 @@ jobs:
   deploy:
     needs: [build, test]
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 30
     concurrency:
       group: production-deployment

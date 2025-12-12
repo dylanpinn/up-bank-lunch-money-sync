@@ -134,6 +134,8 @@ arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsDeployRole
 
 ### 2. Configure GitHub Secrets
 
+The deploy job runs in the `production` GitHub Environment, so you can store these as **Environment secrets** (recommended) and/or as repository secrets.
+
 Add the following secrets to your GitHub repository:
 
 1. Go to GitHub repository → Settings → Secrets and variables → Actions
@@ -179,11 +181,11 @@ aws secretsmanager describe-secret \
 
 1. Push a change to the `main` branch
 2. Go to GitHub → Actions tab
-3. Watch the "Deploy to AWS" workflow run
+3. Watch the "CI/CD Pipeline" workflow run
 4. Verify deployment succeeds
 
 Or trigger manually:
-1. Go to GitHub → Actions → Deploy to AWS
+1. Go to GitHub → Actions → CI/CD Pipeline
 2. Click "Run workflow"
 3. Select branch: `main`
 4. Click "Run workflow"
@@ -192,7 +194,7 @@ Or trigger manually:
 
 ### Workflow File
 
-Location: `.github/workflows/deploy.yml`
+Location: `.github/workflows/ci-cd.yml`
 
 ### Triggers
 
@@ -281,7 +283,7 @@ The workflow passes these environment variables to CDK:
 ### GitHub Actions UI
 
 1. Go to repository → Actions tab
-2. Click on "Deploy to AWS" workflow
+2. Click on "CI/CD Pipeline" workflow
 3. View deployment logs in real-time
 4. Check for errors or warnings
 
@@ -392,7 +394,7 @@ If you cannot set up OIDC, you can use AWS access keys:
 3. Add these GitHub secrets:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
-4. Update `.github/workflows/deploy.yml`:
+4. Update `.github/workflows/ci-cd.yml`:
 
 ```yaml
 - name: Configure AWS credentials
