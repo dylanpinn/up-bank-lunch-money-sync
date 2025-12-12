@@ -5,15 +5,16 @@ permissions:
   id-token: write # Required for OIDC authentication
 
 on:
-  push:
+  workflow_run:
+    workflows: [Build, Test]
+    types: [completed]
     branches: [main]
   workflow_dispatch: # Allow manual triggering
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Only deploy after successful build and test
-    needs: []
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout repository
