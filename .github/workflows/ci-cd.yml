@@ -71,6 +71,7 @@ jobs:
   deploy:
     needs: [build, test]
     runs-on: ubuntu-latest
+    environment: production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
