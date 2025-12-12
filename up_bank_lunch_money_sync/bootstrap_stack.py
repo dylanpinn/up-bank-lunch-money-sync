@@ -65,6 +65,7 @@ class BootstrapStack(Stack):
                     "sns:*",
                     "secretsmanager:*",
                     "events:*",
+                    "ssm:GetParameter",
                     "sts:GetCallerIdentity",
                 ],
                 resources=["*"],
