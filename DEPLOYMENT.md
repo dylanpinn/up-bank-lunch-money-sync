@@ -204,7 +204,7 @@ Location: `.github/workflows/deploy.yml`
 1. ✅ Checkout code
 2. ✅ Set up Python 3.14
 3. ✅ Install Python dependencies
-4. ✅ Install Node.js 20
+4. ✅ Install Node.js 24
 5. ✅ Install AWS CDK
 6. ✅ Configure AWS credentials (OIDC)
 7. ✅ Run CDK diff (preview changes)
