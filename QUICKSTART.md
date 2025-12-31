@@ -47,16 +47,25 @@ aws secretsmanager describe-secret \
   --query 'ARN' --output text
 ```
 
-## Step 3: Add GitHub Secrets (2 minutes)
+## Step 3: Add GitHub Secrets and Variables (2 minutes)
 
-Go to: **GitHub repository → Settings → Secrets and variables → Actions**
+### A. Add Environment Variable
 
-Add these 6 secrets:
+Go to: **GitHub repository → Settings → Environments → production**
+
+Add environment variable:
+
+| Variable Name | Value Source |
+|---------------|--------------|
+| `AWS_REGION` | Your AWS region (e.g., `ap-southeast-2`) |
+
+### B. Add Environment Secrets
+
+In the same production environment, add these 5 secrets:
 
 | Secret Name | Value Source |
 |-------------|--------------|
 | `AWS_ROLE_ARN` | From Step 1 output: `GitHubActionsRoleArn` |
-| `AWS_REGION` | Your AWS region (e.g., `ap-southeast-2`) |
 | `WEBHOOK_SECRET_ARN` | From Step 2: webhook secret ARN |
 | `UP_API_KEY_ARN` | From Step 2: Up Bank API key ARN |
 | `LUNCHMONEY_API_KEY_ARN` | From Step 2: Lunch Money API key ARN |

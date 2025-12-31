@@ -132,19 +132,27 @@ arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsDeployRole
 
 </details>
 
-### 2. Configure GitHub Secrets
+### 2. Configure GitHub Secrets and Variables
 
-The deploy job runs in the `production` GitHub Environment, so you can store these as **Environment secrets** (recommended) and/or as repository secrets.
+The deploy job runs in the `production` GitHub Environment. Configure the following:
 
-Add the following secrets to your GitHub repository:
+#### Environment Variable (in production environment)
 
-1. Go to GitHub repository → Settings → Secrets and variables → Actions
-2. Click "New repository secret" for each:
+1. Go to GitHub repository → Settings → Environments → production
+2. Add environment variable:
+
+| Variable Name | Description | Example Value |
+|---------------|-------------|---------------|
+| `AWS_REGION` | AWS region for deployment | `ap-southeast-2` |
+
+#### Environment Secrets (in production environment)
+
+1. Go to GitHub repository → Settings → Environments → production
+2. Click "Add secret" for each:
 
 | Secret Name | Description | Example Value |
 |-------------|-------------|---------------|
 | `AWS_ROLE_ARN` | IAM role ARN for OIDC | `arn:aws:iam::123456789012:role/GitHubActionsDeployRole` |
-| `AWS_REGION` | AWS region for deployment | `ap-southeast-2` |
 | `WEBHOOK_SECRET_ARN` | ARN of webhook secret in Secrets Manager | `arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:up-bank-webhook-secret-XXXXXX` |
 | `UP_API_KEY_ARN` | ARN of Up Bank API key in Secrets Manager | `arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:up-bank-api-key-XXXXXX` |
 | `LUNCHMONEY_API_KEY_ARN` | ARN of Lunch Money API key in Secrets Manager | `arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:lunchmoney-api-key-XXXXXX` |
@@ -402,7 +410,7 @@ If you cannot set up OIDC, you can use AWS access keys:
   with:
     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    aws-region: ${{ secrets.AWS_REGION }}
+    aws-region: ${{ vars.AWS_REGION }}
 ```
 
 **Note**: This is less secure and not recommended for production use.
