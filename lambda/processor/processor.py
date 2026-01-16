@@ -234,8 +234,7 @@ def convert_to_lunchmoney_format(up_transaction):
             "id"
         ),  # Use Up's transaction ID for deduplication
         "currency": currency,
-        # "status": "cleared" if attributes.get("status") == "SETTLED" else "uncleared",
-        "status": "uncleared",
+        "status": "cleared" if attributes.get("status") == "SETTLED" else "uncleared",
     }
 
     # Look up and add account mapping if available
@@ -286,7 +285,7 @@ def convert_to_lunchmoney_format(up_transaction):
                 "date": transaction_date,
                 "external_id": f"{up_transaction.get('id')}-roundup",
                 "currency": currency,
-                "status": "uncleared",
+                "status": lunchmoney_transaction["status"],
             }
             
             # Use same account mapping for round-up

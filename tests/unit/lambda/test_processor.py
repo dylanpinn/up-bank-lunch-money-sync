@@ -14,6 +14,46 @@ from processor import convert_to_lunchmoney_format, process_transaction_event, s
 class TestProcessorTransactionConversion:
     """Test transaction conversion from Up Bank format to Lunch Money format"""
 
+    def test_convert_settled_transaction_sets_cleared_status(self):
+        up_transaction = {
+            "id": "txn-settled",
+            "attributes": {
+                "status": "SETTLED",
+                "amount": {"value": "-10.00", "currencyCode": "AUD"},
+                "description": "Test",
+                "message": "",
+                "createdAt": "2025-12-10T10:00:00Z",
+                "settledAt": "2025-12-10T10:00:00Z",
+            },
+            "relationships": {
+                "account": {"data": {}},
+                "category": {"data": {}},
+            },
+        }
+
+        result = convert_to_lunchmoney_format(up_transaction)
+        assert result["status"] == "cleared"
+
+    def test_convert_unsettled_transaction_sets_uncleared_status(self):
+        up_transaction = {
+            "id": "txn-unsettled",
+            "attributes": {
+                "status": "HELD",
+                "amount": {"value": "-10.00", "currencyCode": "AUD"},
+                "description": "Test",
+                "message": "",
+                "createdAt": "2025-12-10T10:00:00Z",
+                "settledAt": None,
+            },
+            "relationships": {
+                "account": {"data": {}},
+                "category": {"data": {}},
+            },
+        }
+
+        result = convert_to_lunchmoney_format(up_transaction)
+        assert result["status"] == "uncleared"
+
     def test_convert_income_transaction_positive_amount(self):
         """
         Test that income transactions (positive amounts in Up Bank)
