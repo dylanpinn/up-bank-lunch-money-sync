@@ -19,6 +19,7 @@ class BootstrapStack(Stack):
         github_org = os.environ.get("GITHUB_ORG", "dylanpinn")
         github_repo = os.environ.get("GITHUB_REPO", "up-bank-lunch-money-sync")
         github_branch = os.environ.get("GITHUB_BRANCH", "main")
+        github_environment = os.environ.get("GITHUB_ENVIRONMENT", "production")
 
         # Create GitHub OIDC provider
         github_provider = iam.OpenIdConnectProvider(
@@ -39,7 +40,10 @@ class BootstrapStack(Stack):
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                     },
                     "StringLike": {
-                        "token.actions.githubusercontent.com:sub": f"repo:{github_org}/{github_repo}:ref:refs/heads/{github_branch}"
+                        "token.actions.githubusercontent.com:sub": [
+                            f"repo:{github_org}/{github_repo}:ref:refs/heads/{github_branch}",
+                            f"repo:{github_org}/{github_repo}:environment:{github_environment}",
+                        ]
                     },
                 },
             ),
@@ -92,6 +96,9 @@ class BootstrapStack(Stack):
         CfnOutput(
             self,
             "TrustPolicy",
-            value=f"repo:{github_org}/{github_repo}:ref:refs/heads/{github_branch}",
-            description="Trust policy condition for the GitHub Actions role",
+            value=(
+                f"repo:{github_org}/{github_repo}:ref:refs/heads/{github_branch} OR "
+                f"repo:{github_org}/{github_repo}:environment:{github_environment}"
+            ),
+            description="Trust policy condition(s) for the GitHub Actions role",
         )

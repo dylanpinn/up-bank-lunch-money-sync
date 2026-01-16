@@ -20,7 +20,7 @@ cdk deploy --app "python3 bootstrap_app.py"
 ```
 UpBankLunchMoneySyncBootstrap.GitHubActionsRoleArn = arn:aws:iam::123456789012:role/GitHubActionsDeployRole
 UpBankLunchMoneySyncBootstrap.GitHubOIDCProviderArn = arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com
-UpBankLunchMoneySyncBootstrap.TrustPolicy = repo:dylanpinn/up-bank-lunch-money-sync:ref:refs/heads/main
+UpBankLunchMoneySyncBootstrap.TrustPolicy = repo:dylanpinn/up-bank-lunch-money-sync:ref:refs/heads/main OR repo:dylanpinn/up-bank-lunch-money-sync:environment:production
 ```
 
 ✅ **What this creates:**
