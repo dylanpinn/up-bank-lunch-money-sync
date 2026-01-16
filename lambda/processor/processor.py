@@ -309,7 +309,11 @@ def sync_to_lunchmoney(api_key, transaction):
             "Content-Type": "application/json",
         }
 
-        payload = {"transactions": [transaction], "debit_as_negative": True}
+        payload = {
+            "transactions": [transaction],
+            "debit_as_negative": True,
+            "apply_rules": True,
+        }
 
         logger.debug(f"Transaction to Sync: {transaction}")
         response = requests.post(

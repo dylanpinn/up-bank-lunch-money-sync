@@ -8,7 +8,7 @@ import pytest
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../lambda/processor"))
-from processor import convert_to_lunchmoney_format, process_transaction_event
+from processor import convert_to_lunchmoney_format, process_transaction_event, sync_to_lunchmoney
 
 
 class TestProcessorTransactionConversion:
@@ -181,6 +181,21 @@ class TestProcessorTransactionConversion:
 
         # Should preserve negative sign
         assert float(result["amount"]) == -42.99
+
+
+class TestLunchMoneySync:
+    @patch("processor.requests.post")
+    def test_sync_to_lunchmoney_applies_rules(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}
+        mock_post.return_value = mock_response
+
+        sync_to_lunchmoney("test-api-key", {"external_id": "txn-1"})
+
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["debit_as_negative"] is True
+        assert payload["apply_rules"] is True
 
 
 class TestProcessorRoundUpHandling:
