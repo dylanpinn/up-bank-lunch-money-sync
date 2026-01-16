@@ -170,6 +170,7 @@ cdk deploy
    - Transaction amount, description, merchant
    - Account mapping (Up Bank → Lunch Money)
    - Category mapping (Up Bank → Lunch Money)
+   - Lunch Money rules applied on upload (`apply_rules=true`)
 
 2. **Accounts** (Daily at 2 AM UTC)
    - Syncs all Up Bank accounts
