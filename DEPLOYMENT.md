@@ -34,7 +34,7 @@ cdk deploy --app "python3 bootstrap_app.py"
 # The output will show:
 # BootstrapStack.GitHubActionsRoleArn = arn:aws:iam::123456789012:role/GitHubActionsDeployRole
 # BootstrapStack.GitHubOIDCProviderArn = arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com
-# BootstrapStack.TrustPolicy = repo:dylanpinn/up-bank-lunch-money-sync:ref:refs/heads/main
+# BootstrapStack.TrustPolicy = repo:dylanpinn/up-bank-lunch-money-sync:ref:refs/heads/main OR repo:dylanpinn/up-bank-lunch-money-sync:environment:production
 ```
 
 **That's it!** The bootstrap stack creates:
@@ -47,10 +47,10 @@ Save the `GitHubActionsRoleArn` output - you'll need it for GitHub secrets.
 
 #### Customize (Optional)
 
-To customize the GitHub repository or branch:
+To customize the GitHub repository, branch, or GitHub Environment name:
 
 ```bash
-GITHUB_ORG=your-org GITHUB_REPO=your-repo GITHUB_BRANCH=main \
+GITHUB_ORG=your-org GITHUB_REPO=your-repo GITHUB_BRANCH=main GITHUB_ENVIRONMENT=production \
   cdk deploy --app "python3 bootstrap_app.py"
 ```
 
@@ -115,7 +115,10 @@ Edit the trust relationship to restrict to your repository:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:dylanpinn/up-bank-lunch-money-sync:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:dylanpinn/up-bank-lunch-money-sync:ref:refs/heads/main",
+            "repo:dylanpinn/up-bank-lunch-money-sync:environment:production"
+          ]
         }
       }
     }
