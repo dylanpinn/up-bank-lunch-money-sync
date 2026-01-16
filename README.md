@@ -171,6 +171,7 @@ cdk deploy
    - Account mapping (Up Bank → Lunch Money)
    - Category mapping (Up Bank → Lunch Money)
    - Lunch Money rules applied on upload (`apply_rules=true`)
+   - Lunch Money recurring detection enabled on upload (`check_for_recurring=true`)
 
 2. **Accounts** (Daily at 2 AM UTC)
    - Syncs all Up Bank accounts

@@ -196,6 +196,7 @@ class TestLunchMoneySync:
         payload = mock_post.call_args.kwargs["json"]
         assert payload["debit_as_negative"] is True
         assert payload["apply_rules"] is True
+        assert payload["check_for_recurring"] is True
 
 
 class TestProcessorRoundUpHandling:
