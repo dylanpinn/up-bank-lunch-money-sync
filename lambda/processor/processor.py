@@ -313,6 +313,7 @@ def sync_to_lunchmoney(api_key, transaction):
             "transactions": [transaction],
             "debit_as_negative": True,
             "apply_rules": True,
+            "check_for_recurring": True,
         }
 
         logger.debug(f"Transaction to Sync: {transaction}")
