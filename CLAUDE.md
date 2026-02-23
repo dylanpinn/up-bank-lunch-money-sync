@@ -97,7 +97,7 @@ Up Bank Webhook → API Gateway → Webhook Lambda → SQS Queue
                         Lunch Money API
 ```
 
-### Three Key Workflows
+### Four Key Workflows
 
 1. **Real-time Transaction Processing**
    - Webhook Lambda (lambda/webhook/webhook.py) receives transactions from Up Bank
@@ -107,6 +107,7 @@ Up Bank Webhook → API Gateway → Webhook Lambda → SQS Queue
    - Fetches full transaction details from Up Bank API
    - Converts format and looks up mappings in DynamoDB
    - Posts to Lunch Money API
+   - Failed messages (after 5 retries) move to Dead Letter Queue (DLQ)
 
 2. **Daily Account Synchronization** (scheduled 2 AM UTC)
    - Account Sync Lambda (lambda/account_sync/account_sync.py)
@@ -121,18 +122,28 @@ Up Bank Webhook → API Gateway → Webhook Lambda → SQS Queue
    - Creates or finds corresponding Lunch Money categories
    - Stores ID mappings in DynamoDB (category_mapping_table)
 
+4. **DLQ Redrive** (manual or scheduled)
+   - DLQ Redrive Lambda (lambda/dlq_redrive/dlq_redrive.py)
+   - Moves failed messages from DLQ back to main queue for reprocessing
+   - Can be invoked manually via AWS CLI/Console or scheduled via EventBridge
+   - Processes messages in batches (configurable max messages per invocation)
+   - See docs/DLQ_REDRIVE.md for detailed usage
+
 ### Infrastructure Definition
-**File:** `up_bank_lunch_money_sync/up_bank_lunch_money_sync_stack.py` (224 lines)
+**File:** `up_bank_lunch_money_sync/up_bank_lunch_money_sync_stack.py` (~340 lines)
 
 Defines all AWS resources:
-- **SQS Queue:** Buffers transactions for processing (batch size: 10)
+- **SQS Queues:** 
+  - Main queue - Buffers transactions for processing (batch size: 10, visibility timeout: 12 min)
+  - Dead Letter Queue (DLQ) - Stores failed messages after 5 retry attempts (14 day retention)
 - **DynamoDB Tables:**
   - `account_mapping_table` - Maps Up Bank account IDs to Lunch Money asset IDs
   - `category_mapping_table` - Maps Up Bank category IDs to Lunch Money category IDs (includes parent-child relationships)
-- **Lambda Functions:** webhook, processor, account_sync, category_sync (30s, 5min, 5min, 5min timeouts respectively)
+- **Lambda Functions:** webhook (30s), processor (2min), account_sync (5min), category_sync (5min), dlq_redrive (5min)
 - **API Gateway:** HTTP endpoint for Up Bank webhooks
-- **EventBridge Rules:** Daily triggers at 2 AM and 3 AM UTC
+- **EventBridge Rules:** Daily triggers at 2 AM and 3 AM UTC (optional DLQ redrive schedule available)
 - **Secrets Manager:** Stores webhook secret, Up Bank API key, Lunch Money API key
+- **CloudWatch Alarms:** DLQ message alerts and Lambda error/duration/throttle monitoring
 
 ### Lambda Functions
 
@@ -142,6 +153,7 @@ Defines all AWS resources:
 | processor | lambda/processor/processor.py (298 lines) | Transaction processing, data conversion, API calls |
 | account_sync | lambda/account_sync/account_sync.py (269 lines) | Account synchronization and mapping storage |
 | category_sync | lambda/category_sync/category_sync.py (284 lines) | Category synchronization with pagination and parent-child support |
+| dlq_redrive | lambda/dlq_redrive/dlq_redrive.py (156 lines) | Redrives failed messages from DLQ back to main queue |
 
 ### Shared Utilities
 - **get_secret()** - Retrieves credentials from AWS Secrets Manager
@@ -150,12 +162,13 @@ Defines all AWS resources:
 ## Testing
 
 ### Test Coverage Overview
-59+ unit tests across 6 test files:
+70+ unit tests across 7 test files:
 - **test_helpers.py** - Secret retrieval tests
 - **test_webhook.py** - Webhook handler tests (signature verification, SQS)
 - **test_processor.py** - Transaction processing tests (15+ cases)
 - **test_account_sync.py** - Account sync tests (10+ cases)
 - **test_category_sync.py** - Category sync tests with pagination (11+ cases)
+- **test_dlq_redrive.py** - DLQ redrive tests (11+ cases including partial failures, message attributes)
 - **test_up_bank_lunch_money_sync_stack.py** - CDK infrastructure tests (12+ cases)
 
 ### Testing Strategy
@@ -194,6 +207,7 @@ Defines all AWS resources:
 - **requirements-dev.txt** - Development dependencies
 - **tests/requirements.txt** - Test dependencies (pytest, moto)
 - **mise.toml** - Tool versions (Python 3.14, Node.js latest)
+- **docs/DLQ_REDRIVE.md** - DLQ redrive documentation and usage guide
 
 ## Important Notes
 
@@ -221,3 +235,9 @@ Defines all AWS resources:
    - Account sync: 2 AM UTC daily
    - Category sync: 3 AM UTC daily
    - Times can be adjusted in `up_bank_lunch_money_sync_stack.py`
+
+6. **DLQ Redrive**
+   - Failed messages are retained in DLQ for 14 days
+   - Manual redrive: Invoke the DLQ redrive Lambda via AWS CLI/Console
+   - Automatic redrive: Uncomment EventBridge rule in CDK stack for scheduled redrives
+   - See docs/DLQ_REDRIVE.md for complete usage guide and troubleshooting
