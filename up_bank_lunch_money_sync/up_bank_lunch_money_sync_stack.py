@@ -1,6 +1,6 @@
 import os
 
-from aws_cdk import Duration, RemovalPolicy, Stack
+from aws_cdk import CfnOutput, Duration, RemovalPolicy, Stack
 from aws_cdk import (
     aws_apigateway as apigw,
 )
@@ -266,6 +266,51 @@ class UpBankLunchMoneySyncStack(Stack):
         )
         category_sync_rule.add_target(targets.LambdaFunction(category_sync_lambda))
 
+        # DLQ Redrive Lambda function
+        dlq_redrive_lambda = PythonFunction(
+            self,
+            "DlqRedriveFunction",
+            runtime=_lambda.Runtime.PYTHON_3_14,
+            entry="lambda/dlq_redrive",
+            handler="handler",
+            index="dlq_redrive.py",
+            environment={
+                "DLQ_URL": dlq.queue_url,
+                "MAIN_QUEUE_URL": queue.queue_url,
+                "MAX_MESSAGES": "10",  # Default max messages per invocation
+            },
+            timeout=Duration.minutes(5),
+        )
+
+        # Grant permissions to redrive Lambda
+        dlq.grant_consume_messages(dlq_redrive_lambda)
+        dlq.grant_send_messages(dlq_redrive_lambda)  # Needed for delete
+        queue.grant_send_messages(dlq_redrive_lambda)
+
+        # Create EventBridge rule for scheduled automatic redrive
+        dlq_redrive_rule = events.Rule(
+            self,
+            "DlqRedriveScheduleRule",
+            schedule=events.Schedule.cron(minute="0", hour="*/6"),
+            description="Trigger DLQ redrive every 6 hours",
+        )
+        dlq_redrive_rule.add_target(targets.LambdaFunction(dlq_redrive_lambda))
+
+        # Output the DLQ redrive Lambda function name for manual invocation
+        CfnOutput(
+            self,
+            "DlqRedriveLambdaName",
+            value=dlq_redrive_lambda.function_name,
+            description="Name of the DLQ redrive Lambda function (use for manual invocation)",
+        )
+
+        CfnOutput(
+            self,
+            "DlqName",
+            value=dlq.queue_name,
+            description="Name of the Dead Letter Queue",
+        )
+
         # Create CloudWatch Alarms for Lambda monitoring (only if notification topic exists)
         if notification_topic:
             self._create_lambda_alarms(
@@ -283,6 +328,12 @@ class UpBankLunchMoneySyncStack(Stack):
             self._create_lambda_alarms(
                 category_sync_lambda,
                 "CategorySync",
+                notification_topic,
+                Duration.minutes(4),
+            )
+            self._create_lambda_alarms(
+                dlq_redrive_lambda,
+                "DlqRedrive",
                 notification_topic,
                 Duration.minutes(4),
             )
