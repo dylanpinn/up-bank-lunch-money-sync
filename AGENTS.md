@@ -1,62 +1,65 @@
 # AGENTS.md
 
-## Build/Lint/Test Commands
+Project instructions for coding agents working in this repository.
+
+## Project Overview
+
+AWS serverless microservice that syncs Up Bank transaction webhooks to Lunch
+Money, plus scheduled account and category syncs. Built with AWS CDK (Python
+3.14): API Gateway, Lambda, SQS, DynamoDB, EventBridge, Secrets Manager.
+
+See `README.md` for setup and `DEPLOYMENT.md` for deployment details.
+
+## Commands
 
 ```bash
-# Bootstrap GitHub Actions deployment (one-time setup)
-cdk deploy --app "python3 bootstrap_app.py"
-
-# Synthesize CloudFormation template
-cdk synth
-
-# Deploy to AWS manually (requires env vars: WEBHOOK_SECRET_ARN, UP_API_KEY_ARN, LUNCHMONEY_API_KEY_ARN)
-cdk deploy
-
-# Deploy with notification email
-NOTIFICATION_EMAIL=your@email.com cdk deploy
-
-# Destroy bootstrap stack
-cdk destroy --app "python3 bootstrap_app.py"
-
-# Run all tests
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt -r tests/requirements.txt
 pytest tests/
 
-# Run single test
-pytest tests/unit/test_processor.py::TestProcessor::test_convert_to_lunchmoney_format_basic
-
-# Run with coverage
-pytest --cov=lambda --cov=up_bank_lunch_money_sync --cov-report=html tests/
+cdk synth
+cdk diff
+cdk deploy
 ```
 
-## Continuous Deployment
+All tests are unit tests with AWS and HTTP mocked; never make real AWS or
+external API calls from tests.
 
-The project uses GitHub Actions for automatic deployment to AWS:
+## Non-obvious Constraints
 
-- **Workflow**: `.github/workflows/ci-cd.yml`
-- **Trigger**: Push to `main` branch or manual dispatch
-- **Setup Guide**: See `DEPLOYMENT.md` for complete instructions
+- **Secrets:** the stack references pre-existing Secrets Manager secrets and
+  needs `WEBHOOK_SECRET_ARN`, `UP_API_KEY_ARN`, and `LUNCHMONEY_API_KEY_ARN` set
+  to their ARNs before `cdk synth`/`cdk deploy`. Never embed credentials in
+  templates, environment variables, or CDK state.
+- **Lunch Money endpoint:** every Lambda currently points at the development
+  endpoint `https://dev.lunchmoney.app/v1`; change `LUNCHMONEY_API_BASE` in each
+  Lambda for production.
+- **Webhook security:** HMAC-SHA256 verification of
+  `X-Up-Authenticity-Signature` is enabled; missing or invalid signatures return
+  `403`.
+- **Retries:** processor failures are retried by SQS up to 5 times, then land in
+  the DLQ, which is redriven every 6 hours. Re-raise errors that SQS should
+  retry.
+- **Data safety:** DynamoDB mapping tables use `RemovalPolicy.RETAIN` and
+  mappings survive stack deletion.
+- **HTTP:** all external API calls use a 30-second timeout.
 
-### Quick Deployment Check
+## Project Conventions
 
-```bash
-# View recent deployments
-gh run list --workflow=ci-cd.yml
+- Initialize AWS clients at module level; use the boto3 resource API for
+  DynamoDB.
+- Use `logging.getLogger()` with structured `INFO` messages.
+- Mappings are Up Bank ID -> Lunch Money ID; category mappings include the
+  parent category ID. Preserve pagination and parent/child handling in category
+  sync.
 
-# Watch current deployment
-gh run watch
+## Architecture
 
-# View deployment logs
-gh run view --log
+```
+Up Bank -> API Gateway -> webhook Lambda -> SQS -> processor Lambda -> Lunch Money
+                                              |
+                                          DynamoDB mappings
 ```
 
-## Code Style Guidelines
-
-- **Python 3.14** with type hints where beneficial
-- **Imports**: Standard library → third-party → local, alphabetized within groups
-- **Logging**: Use `logging.getLogger()` with `INFO` level, structured messages
-- **Error Handling**: Try/except blocks with logging, return meaningful error responses
-- **AWS Clients**: Initialize at module level, use boto3 resource for DynamoDB
-- **Naming**: snake_case for functions/variables, PascalCase for classes
-- **Constants**: UPPER_SNAKE_CASE, defined at module level (API endpoints, timeouts)
-- **Functions**: Docstrings for public functions, keep Lambda handlers focused
-- **Timeouts**: 30-second HTTP timeouts for all external API calls
+Other Lambdas: `account_sync` (daily 2 AM UTC), `category_sync` (daily 3 AM
+UTC), `dlq_redrive` (every 6 hours). See `docs/DLQ_REDRIVE.md`.
