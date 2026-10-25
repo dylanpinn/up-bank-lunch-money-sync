@@ -56,6 +56,7 @@ jobs:
           UP_API_KEY_ARN: ${{ secrets.UP_API_KEY_ARN || 'arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:up-bank-api-key-XXXXXX' }}
           LUNCHMONEY_API_KEY_ARN: ${{ secrets.LUNCHMONEY_API_KEY_ARN || 'arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:lunchmoney-api-key-XXXXXX' }}
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+          SYNC_OWNERSHIP_TYPES: ${{ vars.SYNC_OWNERSHIP_TYPES }}
 
 
   test:
@@ -146,6 +147,7 @@ jobs:
           UP_API_KEY_ARN: ${{ secrets.UP_API_KEY_ARN }}
           LUNCHMONEY_API_KEY_ARN: ${{ secrets.LUNCHMONEY_API_KEY_ARN }}
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+          SYNC_OWNERSHIP_TYPES: ${{ vars.SYNC_OWNERSHIP_TYPES }}
 
       - name: Deploy to AWS
         run: cdk deploy --require-approval never
@@ -154,3 +156,4 @@ jobs:
           UP_API_KEY_ARN: ${{ secrets.UP_API_KEY_ARN }}
           LUNCHMONEY_API_KEY_ARN: ${{ secrets.LUNCHMONEY_API_KEY_ARN }}
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+          SYNC_OWNERSHIP_TYPES: ${{ vars.SYNC_OWNERSHIP_TYPES }}

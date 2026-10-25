@@ -18,6 +18,13 @@ dynamodb = boto3.resource("dynamodb")
 UP_API_BASE = "https://api.up.com.au/api/v1"
 LUNCHMONEY_API_BASE = "https://dev.lunchmoney.app/v1"
 
+# Parse allowed ownership types from environment variable
+ALLOWED_OWNERSHIP_TYPES = {
+    t.strip().upper()
+    for t in os.environ.get("SYNC_OWNERSHIP_TYPES", "").split(",")
+    if t.strip()
+}
+
 
 def get_secret(secret_arn):
     """
@@ -32,6 +39,30 @@ def get_secret(secret_arn):
     except Exception as e:
         logger.error(f"Error retrieving secret: {str(e)}")
         raise
+
+
+def get_account_ownership(api_key, account_id):
+    """Fetch the ownershipType of an Up account."""
+    response = requests.get(
+        f"{UP_API_BASE}/accounts/{account_id}",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=30,
+    )
+    if response.status_code != 200:
+        raise Exception(
+            f"Up API error fetching account {account_id}: {response.status_code}"
+        )
+    return response.json().get("data", {}).get("attributes", {}).get("ownershipType")
+
+
+def account_is_tracked(api_key, account_id):
+    """Check if an account's ownership type is in the allowed set.
+
+    Returns True if no filter is configured (backward compatible).
+    """
+    if not ALLOWED_OWNERSHIP_TYPES:
+        return True
+    return get_account_ownership(api_key, account_id) in ALLOWED_OWNERSHIP_TYPES
 
 
 def handler(event, context):
@@ -93,6 +124,19 @@ def process_transaction_event(webhook_data):
 
     if not transaction:
         logger.error(f"Failed to fetch transaction {transaction_id}")
+        return
+
+    # Check if transaction's account is tracked (ownership type filter)
+    account_id = (
+        transaction.get("relationships", {})
+        .get("account", {})
+        .get("data", {})
+        .get("id")
+    )
+    if account_id and not account_is_tracked(up_api_key, account_id):
+        logger.info(
+            f"Skipping transaction {transaction_id} from untracked account {account_id}"
+        )
         return
 
     # Convert to Lunch Money format and check for round-up

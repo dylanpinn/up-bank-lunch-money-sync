@@ -93,6 +93,9 @@ export LUNCHMONEY_API_KEY_ARN="arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:l
 
 # Optional: Set notification email for alerts
 export NOTIFICATION_EMAIL="your-email@example.com"
+
+# Optional: Restrict sync to specific Up account ownership types (e.g., JOINT only)
+export SYNC_OWNERSHIP_TYPES="JOINT"
 ```
 
 Save these in `.env` or your shell profile for convenience.
@@ -183,6 +186,27 @@ cdk deploy
    - Syncs all Up Bank spending categories
    - Handles parent-child category relationships
    - Stores category ID mappings
+
+### Filtering by Account Ownership Type
+
+By default, all Up accounts and their transactions are synced. To restrict the sync to only joint (2Up / shared) accounts:
+
+1. Set the `SYNC_OWNERSHIP_TYPES` environment variable to `JOINT` before deploying:
+   ```bash
+   export SYNC_OWNERSHIP_TYPES="JOINT"
+   cdk deploy
+   ```
+
+2. For GitHub Actions deployment, set it as a repository variable (not a secret):
+   - Go to Settings → Secrets and variables → Actions → Variables tab
+   - Add `SYNC_OWNERSHIP_TYPES` with value `JOINT`
+
+**How it works:**
+- **Account sync**: Only fetches accounts matching the configured ownership type(s) from the Up API using the `filter[ownershipType]` query parameter.
+- **Processor**: Before uploading each webhook transaction, checks the account's ownership type via the Up API and skips untracked accounts.
+- **Backward compatible**: If `SYNC_OWNERSHIP_TYPES` is empty or unset, all accounts are synced (same as current behaviour).
+
+Valid values: `INDIVIDUAL`, `JOINT` (comma-separated for multiple).
 
 ## Continuous Deployment
 
