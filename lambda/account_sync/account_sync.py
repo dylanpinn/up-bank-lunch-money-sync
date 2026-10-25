@@ -17,6 +17,13 @@ dynamodb = boto3.resource("dynamodb")
 UP_API_BASE = "https://api.up.com.au/api/v1"
 LUNCHMONEY_API_BASE = "https://dev.lunchmoney.app/v1"
 
+# Parse allowed ownership types from environment variable
+ALLOWED_OWNERSHIP_TYPES = {
+    t.strip().upper()
+    for t in os.environ.get("SYNC_OWNERSHIP_TYPES", "").split(",")
+    if t.strip()
+}
+
 
 def get_secret(secret_arn):
     """
@@ -141,6 +148,11 @@ def fetch_up_accounts(api_key):
         headers = {"Authorization": f"Bearer {api_key}"}
         accounts = []
         url = f"{UP_API_BASE}/accounts"
+        if ALLOWED_OWNERSHIP_TYPES:
+            # Use server-side filtering — Up API supports filter[ownershipType]
+            filter_value = ",".join(sorted(ALLOWED_OWNERSHIP_TYPES))
+            url += f"?filter[ownershipType]={filter_value}"
+            logger.info(f"Filtering accounts by ownership type: {filter_value}")
         
         # Paginate through all accounts
         while url:

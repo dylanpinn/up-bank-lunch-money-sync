@@ -474,3 +474,183 @@ class TestProcessorRoundUpHandling:
         assert "Warung Bebek Bengil" in roundup_txn["notes"]
 
 
+class TestProcessorOwnershipFiltering:
+    """Test ownership type filtering in processor."""
+
+    @patch("processor.requests.get")
+    def test_get_account_ownership_returns_type(self, mock_get):
+        """Verify get_account_ownership returns the ownershipType from API response."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": {
+                "id": "acc-1",
+                "attributes": {
+                    "displayName": "Joint Account",
+                    "ownershipType": "JOINT",
+                },
+            }
+        }
+        mock_get.return_value = mock_response
+
+        import processor
+
+        result = processor.get_account_ownership("test-api-key", "acc-1")
+        assert result == "JOINT"
+        mock_get.assert_called_once_with(
+            "https://api.up.com.au/api/v1/accounts/acc-1",
+            headers={"Authorization": "Bearer test-api-key"},
+            timeout=30,
+        )
+
+    @patch("processor.requests.get")
+    def test_get_account_ownership_raises_on_error(self, mock_get):
+        """Verify non-200 raises Exception (for SQS retry)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_get.return_value = mock_response
+
+        import processor
+
+        with pytest.raises(Exception) as exc_info:
+            processor.get_account_ownership("test-api-key", "acc-1")
+        assert "Up API error fetching account acc-1: 500" in str(exc_info.value)
+
+    @patch.dict(os.environ, {"SYNC_OWNERSHIP_TYPES": ""}, clear=False)
+    def test_account_is_tracked_no_filter_returns_true(self):
+        """No filter configured -> all accounts tracked (backward compatible)."""
+        import importlib
+        import processor
+
+        importlib.reload(processor)
+
+        with patch("processor.get_account_ownership") as mock_get_ownership:
+            assert processor.account_is_tracked("test-api-key", "acc-1") is True
+            mock_get_ownership.assert_not_called()
+
+    @patch.dict(os.environ, {"SYNC_OWNERSHIP_TYPES": "JOINT"}, clear=False)
+    def test_account_is_tracked_joint_account(self):
+        """JOINT account tracked when SYNC_OWNERSHIP_TYPES=JOINT."""
+        import importlib
+        import processor
+
+        importlib.reload(processor)
+
+        with patch("processor.get_account_ownership") as mock_get_ownership:
+            mock_get_ownership.return_value = "JOINT"
+            assert processor.account_is_tracked("test-api-key", "acc-joint") is True
+            mock_get_ownership.assert_called_once_with("test-api-key", "acc-joint")
+
+    @patch.dict(os.environ, {"SYNC_OWNERSHIP_TYPES": "JOINT"}, clear=False)
+    def test_account_is_tracked_individual_account_skipped(self):
+        """INDIVIDUAL account NOT tracked when SYNC_OWNERSHIP_TYPES=JOINT."""
+        import importlib
+        import processor
+
+        importlib.reload(processor)
+
+        with patch("processor.get_account_ownership") as mock_get_ownership:
+            mock_get_ownership.return_value = "INDIVIDUAL"
+            assert processor.account_is_tracked("test-api-key", "acc-indiv") is False
+            mock_get_ownership.assert_called_once_with("test-api-key", "acc-indiv")
+
+    @patch.dict(os.environ, {"SYNC_OWNERSHIP_TYPES": "JOINT"}, clear=False)
+    def test_process_skips_untracked_account(self):
+        """Full integration: untracked account -> sync_to_lunchmoney NOT called."""
+        import importlib
+        import processor
+
+        importlib.reload(processor)
+
+        os.environ["UP_API_KEY_ARN"] = "test-up-arn"
+        os.environ["LUNCHMONEY_API_KEY_ARN"] = "test-lm-arn"
+
+        with (
+            patch("processor.get_secret") as mock_get_secret,
+            patch("processor.fetch_up_transaction") as mock_fetch,
+            patch("processor.account_is_tracked") as mock_is_tracked,
+            patch("processor.sync_to_lunchmoney") as mock_sync,
+        ):
+            mock_get_secret.side_effect = ["test-up-key", "test-lm-key"]
+            mock_fetch.return_value = {
+                "id": "txn-untracked",
+                "attributes": {
+                    "amount": {"value": "-15.00", "currencyCode": "AUD"},
+                    "description": "Coffee",
+                    "message": "",
+                    "createdAt": "2025-12-10T10:00:00Z",
+                    "settledAt": "2025-12-10T10:00:00Z",
+                },
+                "relationships": {
+                    "account": {"data": {"type": "accounts", "id": "acc-indiv"}},
+                    "category": {"data": {}},
+                },
+            }
+            mock_is_tracked.return_value = False
+
+            webhook_data = {
+                "data": {
+                    "attributes": {"eventType": "TRANSACTION_CREATED"},
+                    "relationships": {
+                        "transaction": {
+                            "data": {"type": "transactions", "id": "txn-untracked"}
+                        }
+                    },
+                }
+            }
+
+            processor.process_transaction_event(webhook_data)
+
+            mock_is_tracked.assert_called_once_with("test-up-key", "acc-indiv")
+            mock_sync.assert_not_called()
+
+    @patch.dict(os.environ, {"SYNC_OWNERSHIP_TYPES": "JOINT"}, clear=False)
+    def test_process_syncs_tracked_account(self):
+        """Full integration: tracked account -> sync_to_lunchmoney called."""
+        import importlib
+        import processor
+
+        importlib.reload(processor)
+
+        os.environ["UP_API_KEY_ARN"] = "test-up-arn"
+        os.environ["LUNCHMONEY_API_KEY_ARN"] = "test-lm-arn"
+
+        with (
+            patch("processor.get_secret") as mock_get_secret,
+            patch("processor.fetch_up_transaction") as mock_fetch,
+            patch("processor.account_is_tracked") as mock_is_tracked,
+            patch("processor.sync_to_lunchmoney") as mock_sync,
+        ):
+            mock_get_secret.side_effect = ["test-up-key", "test-lm-key"]
+            mock_fetch.return_value = {
+                "id": "txn-tracked",
+                "attributes": {
+                    "amount": {"value": "-25.00", "currencyCode": "AUD"},
+                    "description": "Groceries",
+                    "message": "",
+                    "createdAt": "2025-12-10T10:00:00Z",
+                    "settledAt": "2025-12-10T10:00:00Z",
+                },
+                "relationships": {
+                    "account": {"data": {"type": "accounts", "id": "acc-joint"}},
+                    "category": {"data": {}},
+                },
+            }
+            mock_is_tracked.return_value = True
+
+            webhook_data = {
+                "data": {
+                    "attributes": {"eventType": "TRANSACTION_CREATED"},
+                    "relationships": {
+                        "transaction": {
+                            "data": {"type": "transactions", "id": "txn-tracked"}
+                        }
+                    },
+                }
+            }
+
+            processor.process_transaction_event(webhook_data)
+
+            mock_is_tracked.assert_called_once_with("test-up-key", "acc-joint")
+            assert mock_sync.call_count == 1
+

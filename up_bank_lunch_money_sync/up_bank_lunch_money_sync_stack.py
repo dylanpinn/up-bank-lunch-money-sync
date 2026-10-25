@@ -41,6 +41,9 @@ class UpBankLunchMoneySyncStack(Stack):
         # Read optional notification email from environment variable
         notification_email_value = os.environ.get("NOTIFICATION_EMAIL")
 
+        # Read optional ownership type filter from environment variable
+        sync_ownership_types = os.environ.get("SYNC_OWNERSHIP_TYPES", "")
+
         # Create SNS topic for notifications (only if email is provided)
         notification_topic = None
         if notification_email_value:
@@ -169,6 +172,7 @@ class UpBankLunchMoneySyncStack(Stack):
                 "LUNCHMONEY_API_KEY_ARN": lunchmoney_api_key_secret.secret_arn,
                 "ACCOUNT_MAPPING_TABLE": account_mapping_table.table_name,
                 "CATEGORY_MAPPING_TABLE": category_mapping_table.table_name,
+                "SYNC_OWNERSHIP_TYPES": sync_ownership_types,
             },
             timeout=Duration.minutes(2),
         )
@@ -185,6 +189,7 @@ class UpBankLunchMoneySyncStack(Stack):
                 "UP_API_KEY_ARN": up_api_key_secret.secret_arn,
                 "LUNCHMONEY_API_KEY_ARN": lunchmoney_api_key_secret.secret_arn,
                 "ACCOUNT_MAPPING_TABLE": account_mapping_table.table_name,
+                "SYNC_OWNERSHIP_TYPES": sync_ownership_types,
             },
             timeout=Duration.minutes(5),
         )
