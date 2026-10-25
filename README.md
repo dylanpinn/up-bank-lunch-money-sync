@@ -364,6 +364,6 @@ See LICENSE file for details.
 
 For issues or questions:
 1. Check TESTING.md for test-related questions
-2. Review CLAUDE.md for architecture details
+2. Review AGENTS.md for architecture details
 3. Check CloudWatch logs for runtime errors
 4. Verify all API keys and configuration are correct
